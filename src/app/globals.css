@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --brand-primary: #502d17;
+  --brand-secondary: #e6d5c3;
+  --brand-accent: #e59866;
+  --brand-success: #7a9a60;
+  --brand-error: #ed4c5c;
+  --background: #ffffff;
+  --foreground: #502d17;
+}
+
+@theme inline {
+  --color-primary: var(--brand-primary);
+  --color-secondary: var(--brand-secondary);
+  --color-accent: var(--brand-accent);
+  --color-success: var(--brand-success);
+  --color-error: var(--brand-error);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-poppins);
+  --font-title: var(--font-manrope);
+  --animate-fade-in: fade-in 0.4s ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+}
