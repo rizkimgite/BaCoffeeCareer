@@ -7,13 +7,12 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/verifikasi-bisnis", label: "Verifikasi Bisnis" },
-  { href: "/verifikasi-bacoffee", label: "Verifikasi BaCoffee" },
+  { href: "/kelola-akun-pengguna", label: "Kelola Akun Pengguna" },
   { href: "/pengaduan-bisnis", label: "Pengaduan Bisnis" },
   { href: "/pengaduan-bacoffee", label: "Pengaduan BaCoffee" },
   { href: "/riwayat-transaksi", label: "Riwayat Transaksi" },
   { href: "/moderasi-ulasan", label: "Moderasi Ulasan" },
   { href: "/notifikasi-broadcast", label: "Notifikasi & Broadcast" },
-  { href: "/manajemen-pengguna", label: "Manajemen Pengguna" },
   { href: "/laporan-analitik", label: "Laporan & Analitik" },
   { href: "/pengaturan", label: "Pengaturan Admin" },
 ];

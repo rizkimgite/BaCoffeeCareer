@@ -1,7 +1,7 @@
 const SESSION_KEY = "bc_admin_session";
 
 export const DEMO_CREDENTIALS = {
-  username: "admin",
+  username: "rizkymgite",
   password: "bacoffee2026",
 };
 
@@ -24,6 +24,13 @@ export function login(username: string, password: string): boolean {
   cachedRaw = raw;
   cachedSession = { username };
   return true;
+}
+
+export function logout() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(SESSION_KEY);
+  cachedRaw = null;
+  cachedSession = null;
 }
 
 export function getSession(): AdminSession | null {

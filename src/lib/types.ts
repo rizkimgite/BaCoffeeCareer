@@ -1,4 +1,4 @@
-export type RegistrationStatus = "pending" | "verified" | "rejected";
+export type RegistrationStatus = "pending" | "verified" | "rejected" | "suspended";
 
 export type FirestoreTimestamp = {
   seconds: number;
