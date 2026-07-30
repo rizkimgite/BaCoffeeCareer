@@ -31,3 +31,24 @@ export type ConsumerRegistration = {
   status: RegistrationStatus;
   submittedAt?: FirestoreTimestamp | null;
 };
+
+export type BroadcastSegment = "bisnis" | "bacoffee" | "keduanya";
+
+export type BroadcastRelatedFeature =
+  | "monitoring_kedai"
+  | "monitoring_pasar"
+  | "ai_helper"
+  | "ads"
+  | "bundle_premium";
+
+export type PlatformBroadcast = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  targetSegment: BroadcastSegment;
+  linkTo?: string | null;
+  relatedFeature?: BroadcastRelatedFeature | null;
+  startAt: FirestoreTimestamp;
+  expiresAt: FirestoreTimestamp;
+  createdAt?: FirestoreTimestamp | null;
+};
