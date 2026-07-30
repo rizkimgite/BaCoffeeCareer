@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { db } from "@/lib/firebase";
 import type { BusinessRegistration } from "@/lib/types";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import PhotoLightbox from "@/components/PhotoLightbox";
 
 const PHOTO_FIELDS: { key: keyof BusinessRegistration; label: string }[] = [
   { key: "ktpPhotoUrl", label: "KTP" },
@@ -31,6 +32,9 @@ export default function VerifikasiBisnisPage() {
     null,
   );
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     const q = query(
@@ -140,7 +144,12 @@ export default function VerifikasiBisnisPage() {
                 const url = item[f.key] as string | undefined;
                 return (
                   <div key={f.label} className="flex flex-col gap-1">
-                    <div className="relative aspect-square overflow-hidden rounded-lg bg-secondary">
+                    <button
+                      type="button"
+                      disabled={!url}
+                      onClick={() => url && setLightboxPhoto({ url, label: f.label })}
+                      className="relative aspect-square overflow-hidden rounded-lg bg-secondary transition-transform enabled:hover:scale-[1.03] enabled:cursor-zoom-in"
+                    >
                       {url ? (
                         <Image
                           src={url}
@@ -153,7 +162,7 @@ export default function VerifikasiBisnisPage() {
                           Tidak ada
                         </div>
                       )}
-                    </div>
+                    </button>
                     <span className="text-center text-[10px] text-primary/50">
                       {f.label}
                     </span>
@@ -203,6 +212,14 @@ export default function VerifikasiBisnisPage() {
         onConfirm={handleConfirm}
         onCancel={() => setConfirmTarget(null)}
       />
+
+      {lightboxPhoto && (
+        <PhotoLightbox
+          src={lightboxPhoto.url}
+          alt={lightboxPhoto.label}
+          onClose={() => setLightboxPhoto(null)}
+        />
+      )}
     </div>
   );
 }

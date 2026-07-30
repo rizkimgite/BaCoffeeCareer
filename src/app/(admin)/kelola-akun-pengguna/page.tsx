@@ -130,7 +130,7 @@ export default function KelolaAkunPenggunaPage() {
           Kelola Akun Pengguna
         </h1>
         <p className="mt-1 text-sm text-primary/60">
-          Cari & kendalikan akun yang sudah terdaftar, baik BaCoffee Business maupun BaCoffee
+          Temukan semua pengguna yang terdaftar
         </p>
       </div>
 
