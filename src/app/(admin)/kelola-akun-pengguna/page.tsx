@@ -4,8 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, deleteDoc, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
-import type { BusinessRegistration, ConsumerRegistration, RegistrationStatus } from "@/lib/types";
+import type {
+  BusinessRegistration,
+  ConsumerAccount,
+  ConsumerStatus,
+  RegistrationStatus,
+} from "@/lib/types";
 import ConfirmDialog from "@/components/ConfirmDialog";
+
+// Bisnis dan konsumen punya kosakata status yang beda (lihat catatan di lib/types.ts) - keduanya
+// tampil di daftar yang sama, jadi tipe gabungan.
+type AccountStatus = RegistrationStatus | ConsumerStatus;
 
 type ManagedAccount = {
   id: string;
@@ -13,29 +22,31 @@ type ManagedAccount = {
   displayName: string;
   phoneNumber: string;
   email?: string;
-  status: RegistrationStatus;
-  raw: BusinessRegistration | ConsumerRegistration;
+  status: AccountStatus;
+  raw: BusinessRegistration | ConsumerAccount;
 };
 
-const STATUS_LABEL: Record<RegistrationStatus, string> = {
+const STATUS_LABEL: Record<AccountStatus, string> = {
   pending: "Pending",
   verified: "Terverifikasi",
   rejected: "Ditolak",
   suspended: "Disuspend",
+  aktif: "Aktif",
 };
 
-const STATUS_CLASS: Record<RegistrationStatus, string> = {
+const STATUS_CLASS: Record<AccountStatus, string> = {
   pending: "bg-accent/15 text-accent",
   verified: "bg-success/15 text-success",
   rejected: "bg-error/15 text-error",
   suspended: "bg-error/15 text-error",
+  aktif: "bg-success/15 text-success",
 };
 
 type PendingAction = { account: ManagedAccount; action: "suspend" | "reactivate" | "delete" };
 
 export default function KelolaAkunPenggunaPage() {
   const [businesses, setBusinesses] = useState<BusinessRegistration[]>([]);
-  const [consumers, setConsumers] = useState<ConsumerRegistration[]>([]);
+  const [consumers, setConsumers] = useState<ConsumerAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -55,9 +66,12 @@ export default function KelolaAkunPenggunaPage() {
       );
       markLoaded();
     });
-    const unsubConsumer = onSnapshot(collection(db, "consumer_registrations"), (snap) => {
+    // `consumers` - koleksi yang benar-benar ditulis app konsumen. Sebelumnya membaca
+    // `consumer_registrations` yang tidak pernah diisi siapa pun, jadi halaman ini tidak pernah
+    // bisa menampilkan satu pun akun konsumen asli.
+    const unsubConsumer = onSnapshot(collection(db, "consumers"), (snap) => {
       setConsumers(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ConsumerRegistration),
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ConsumerAccount),
       );
       markLoaded();
     });
@@ -81,9 +95,13 @@ export default function KelolaAkunPenggunaPage() {
     const fromConsumer: ManagedAccount[] = consumers.map((c) => ({
       id: c.id,
       type: "consumer",
-      displayName: c.phoneNumber || "(Tanpa nomor)",
-      phoneNumber: c.phoneNumber,
-      status: c.status,
+      // Nama asli - skema `consumers` punya field `name`, yang tidak pernah ada di koleksi lama.
+      displayName: c.name || "(Tanpa nama)",
+      // `emailOrPhone` sudah berformat "+62..." sama seperti phoneNumber milik bisnis, jadi nomor
+      // kedua tipe akun tampil seragam. Fallback ke doc id (nomor HP mentah) untuk dokumen lama.
+      phoneNumber: c.emailOrPhone || `+62${c.id}`,
+      // Dokumen yang dibuat sebelum field status ada dianggap aktif - sama seperti sisi Android.
+      status: c.status ?? "aktif",
       raw: c,
     }));
     return [...fromBusiness, ...fromConsumer];
@@ -103,7 +121,7 @@ export default function KelolaAkunPenggunaPage() {
     if (!pendingAction) return;
     const { account, action } = pendingAction;
     const collectionName =
-      account.type === "business" ? "business_registrations" : "consumer_registrations";
+      account.type === "business" ? "business_registrations" : "consumers";
 
     setWorkingId(account.id);
     try {
@@ -111,7 +129,13 @@ export default function KelolaAkunPenggunaPage() {
         await deleteDoc(doc(db, collectionName, account.id));
         toast.success("Akun dihapus permanen");
       } else {
-        const newStatus: RegistrationStatus = action === "suspend" ? "suspended" : "verified";
+        // "Aktifkan kembali" harus sadar tipe akun: bisnis kembali ke "verified" (lolos verifikasi
+        // berkas), konsumen ke "aktif" - konsumen tidak punya proses verifikasi, jadi "verified"
+        // adalah nilai yang tidak dikenal skemanya dan akan tampil sebagai badge asing di daftar.
+        // Suspend sama untuk keduanya.
+        const reactivatedStatus: AccountStatus =
+          account.type === "business" ? "verified" : "aktif";
+        const newStatus: AccountStatus = action === "suspend" ? "suspended" : reactivatedStatus;
         await updateDoc(doc(db, collectionName, account.id), { status: newStatus });
         toast.success(action === "suspend" ? "Akun disuspend" : "Akun diaktifkan kembali");
       }
@@ -226,7 +250,7 @@ export default function KelolaAkunPenggunaPage() {
                   {account.type === "business" ? (
                     <BusinessDetail data={account.raw as BusinessRegistration} />
                   ) : (
-                    <ConsumerDetail data={account.raw as ConsumerRegistration} />
+                    <ConsumerDetail data={account.raw as ConsumerAccount} />
                   )}
                 </div>
               )}
@@ -301,16 +325,30 @@ function BusinessDetail({ data }: { data: BusinessRegistration }) {
   );
 }
 
-function ConsumerDetail({ data }: { data: ConsumerRegistration }) {
+function ConsumerDetail({ data }: { data: ConsumerAccount }) {
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
       <div>
+        <dt className="text-primary/50">Nama</dt>
+        <dd className="text-primary">{data.name || "-"}</dd>
+      </div>
+      <div>
         <dt className="text-primary/50">Nomor HP</dt>
-        <dd className="text-primary">{data.phoneNumber}</dd>
+        <dd className="text-primary">{data.emailOrPhone || `+62${data.id}`}</dd>
       </div>
       <div>
         <dt className="text-primary/50">Status</dt>
-        <dd className="text-primary">{STATUS_LABEL[data.status]}</dd>
+        <dd className="text-primary">{STATUS_LABEL[data.status ?? "aktif"]}</dd>
+      </div>
+      <div>
+        <dt className="text-primary/50">Poin</dt>
+        <dd className="text-primary">{(data.pointsBalance ?? 0).toLocaleString("id-ID")}</dd>
+      </div>
+      <div className="col-span-2">
+        <dt className="text-primary/50">Preferensi Fasilitas</dt>
+        <dd className="text-primary">
+          {data.facilityPreferences?.length ? data.facilityPreferences.join(", ") : "-"}
+        </dd>
       </div>
     </dl>
   );

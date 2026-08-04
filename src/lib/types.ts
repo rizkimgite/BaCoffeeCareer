@@ -25,19 +25,37 @@ export type BusinessRegistration = {
   submittedAt?: FirestoreTimestamp | null;
 };
 
-export type ConsumerRegistration = {
+// Konsumen punya kosakata status sendiri, TIDAK memakai RegistrationStatus milik bisnis:
+// tidak ada proses verifikasi berkas untuk konsumen (akun langsung jadi begitu onboarding selesai),
+// jadi "pending"/"verified"/"rejected" tidak punya arti di sini. Yang relevan cuma aktif vs
+// disuspend. Ditulis app konsumen (ConsumerStatus.kt), diubah admin lewat Kelola Akun Pengguna.
+export type ConsumerStatus = "aktif" | "suspended";
+
+// Mencerminkan dokumen `consumers/{id}` yang benar-benar ditulis app konsumen — id dokumen = nomor
+// HP mentah (tanpa +62), konvensi sama dengan business_registrations.
+//
+// Menggantikan tipe `ConsumerRegistration` lama yang memetakan koleksi `consumer_registrations`:
+// koleksi itu ternyata tidak pernah ditulis oleh app konsumen (asumsi lama dari sebelum app-nya
+// dibangun), jadi BC tidak pernah bisa melihat akun konsumen asli. Bentuk fieldnya beda total —
+// `submittedAt`/`phoneNumber` tidak ada di sini, penggantinya `createdAt` dan doc id/`emailOrPhone`.
+export type ConsumerAccount = {
   id: string;
-  phoneNumber: string;
-  status: RegistrationStatus;
-  submittedAt?: FirestoreTimestamp | null;
+  name: string;
+  emailOrPhone?: string;
+  status?: ConsumerStatus;
+  facilityPreferences?: string[];
+  pointsBalance?: number;
+  createdAt?: FirestoreTimestamp | null;
 };
 
 export type BroadcastSegment = "bisnis" | "bacoffee" | "keduanya";
 
+// "ai_helper" dihapus bersamaan dengan penghapusan fitur AI Helper di BB. Dokumen broadcast lama
+// yang terlanjur menyimpan nilai itu masih bisa terbaca dari Firestore (nilainya di luar union
+// ini) - lihat fallback label di notifikasi-broadcast/page.tsx.
 export type BroadcastRelatedFeature =
   | "monitoring_kedai"
   | "monitoring_pasar"
-  | "ai_helper"
   | "ads"
   | "bundle_premium";
 

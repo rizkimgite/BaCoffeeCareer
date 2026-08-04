@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { BusinessRegistration, ConsumerRegistration, FirestoreTimestamp, PlatformBroadcast } from "@/lib/types";
+import EmptyState from "@/components/EmptyState";
+import type { BusinessRegistration, ConsumerAccount, FirestoreTimestamp, PlatformBroadcast } from "@/lib/types";
 
 function toDate(ts?: FirestoreTimestamp | null): Date | null {
   return ts ? new Date(ts.seconds * 1000) : null;
@@ -137,6 +138,7 @@ function GrowthLineChart({
 }
 
 function VerificationDonut({ verified, pending, rejected }: { verified: number; pending: number; rejected: number }) {
+  const isEmpty = verified + pending + rejected === 0;
   const total = Math.max(1, verified + pending + rejected);
   const radius = 60;
   const circumference = 2 * Math.PI * radius;
@@ -146,6 +148,21 @@ function VerificationDonut({ verified, pending, rejected }: { verified: number; 
     { value: rejected, color: "var(--color-error)" },
   ];
   let cumulative = 0;
+
+  // Cincin abu-abu polos + label tengah kalau belum ada satu pun pendaftaran bisnis. Tanpa label
+  // ini donut kosong terbaca ambigu - mirip donut yang gagal dirender.
+  if (isEmpty) {
+    return (
+      <div className="relative mx-auto mt-2 h-40 w-40">
+        <svg viewBox="0 0 160 160" className="h-40 w-40">
+          <circle cx={80} cy={80} r={radius} fill="none" stroke="var(--color-secondary)" strokeWidth={20} />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-xs text-primary/50">
+          Belum ada data
+        </span>
+      </div>
+    );
+  }
 
   return (
     <svg viewBox="0 0 160 160" className="mx-auto mt-2 h-40 w-40 -rotate-90">
@@ -189,7 +206,7 @@ type ActivityItem = { label: string; sublabel: string; timestamp: Date };
 
 export default function DashboardPage() {
   const [businessDocs, setBusinessDocs] = useState<BusinessRegistration[]>([]);
-  const [consumerDocs, setConsumerDocs] = useState<ConsumerRegistration[]>([]);
+  const [consumerDocs, setConsumerDocs] = useState<ConsumerAccount[]>([]);
   const [broadcasts, setBroadcasts] = useState<PlatformBroadcast[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -199,8 +216,10 @@ export default function DashboardPage() {
         setBusinessDocs(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as BusinessRegistration));
         setLoading(false);
       }),
-      onSnapshot(collection(db, "consumer_registrations"), (snap) => {
-        setConsumerDocs(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ConsumerRegistration));
+      // `consumers`, bukan `consumer_registrations` - koleksi kedua itu tidak pernah ditulis app
+      // konsumen, jadi kartu Konsumen & grafik pertumbuhan selalu nol walau ada akun asli.
+      onSnapshot(collection(db, "consumers"), (snap) => {
+        setConsumerDocs(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ConsumerAccount));
       }),
       onSnapshot(collection(db, "platform_broadcasts"), (snap) => {
         setBroadcasts(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PlatformBroadcast));
@@ -210,7 +229,10 @@ export default function DashboardPage() {
   }, []);
 
   const businessDates = businessDocs.map((d) => toDate(d.submittedAt)).filter((d): d is Date => d !== null);
-  const consumerDates = consumerDocs.map((d) => toDate(d.submittedAt)).filter((d): d is Date => d !== null);
+  // Konsumen pakai `createdAt` (skema `consumers`), bisnis pakai `submittedAt`
+  // (skema `business_registrations`) - dua koleksi beda penamaan, sengaja tidak diseragamkan
+  // supaya tidak perlu mengubah skema yang sudah dipakai lintas platform.
+  const consumerDates = consumerDocs.map((d) => toDate(d.createdAt)).filter((d): d is Date => d !== null);
   const verifiedDates = businessDocs
     .filter((d) => d.status === "verified")
     .map((d) => toDate(d.submittedAt))
@@ -235,9 +257,9 @@ export default function DashboardPage() {
       timestamp: toDate(d.submittedAt),
     })),
     ...consumerDocs.map((d) => ({
-      label: d.phoneNumber,
+      label: d.name || d.emailOrPhone || d.id,
       sublabel: "Mendaftar sebagai konsumen",
-      timestamp: toDate(d.submittedAt),
+      timestamp: toDate(d.createdAt),
     })),
     ...broadcasts.map((d) => ({
       label: d.title,
@@ -304,7 +326,18 @@ export default function DashboardPage() {
               <span className="h-2 w-2 rounded-full bg-primary" /> Pelaku Usaha
             </span>
           </div>
-          <GrowthLineChart konsumenSeries={konsumenSeries} pelakuUsahaSeries={pelakuUsahaSeries} labels={dayLabels} />
+          {/* Kalau ke-14 titik (2 seri x 7 hari) semuanya nol, maxValue dipaksa jadi 1 dan kedua
+              polyline digambar sebagai garis lurus bertumpuk di dasar grafik - terbaca seperti
+              grafik berisi data yang trennya rata, padahal artinya tidak ada pendaftaran sama
+              sekali. Grafiknya diganti empty state, bukan dibiarkan menggambar garis palsu. */}
+          {konsumenSeries.every((v) => v === 0) && pelakuUsahaSeries.every((v) => v === 0) ? (
+            <EmptyState
+              title="Belum ada pendaftaran"
+              description="Grafik pertumbuhan terbentuk begitu ada akun konsumen atau pelaku usaha yang mendaftar dalam 7 hari terakhir."
+            />
+          ) : (
+            <GrowthLineChart konsumenSeries={konsumenSeries} pelakuUsahaSeries={pelakuUsahaSeries} labels={dayLabels} />
+          )}
         </div>
 
         <div className="animate-fade-in rounded-2xl border border-secondary bg-white p-5">
@@ -322,7 +355,13 @@ export default function DashboardPage() {
         <div className="animate-fade-in rounded-2xl border border-secondary bg-white p-5">
           <h2 className="font-semibold text-primary">Aktivitas Terbaru</h2>
           <div className="mt-3 flex flex-col gap-3">
-            {activity.length === 0 && <p className="text-sm text-primary/50">Belum ada aktivitas.</p>}
+            {activity.length === 0 && (
+              <EmptyState
+                compact
+                title="Belum ada aktivitas"
+                description="Pendaftaran akun dan broadcast baru akan tercatat di sini secara otomatis."
+              />
+            )}
             {activity.map((item, i) => (
               <div key={i} className="flex items-center justify-between gap-3 text-sm">
                 <div className="min-w-0">
@@ -340,7 +379,13 @@ export default function DashboardPage() {
         <div className="animate-fade-in rounded-2xl border border-secondary bg-white p-5">
           <h2 className="font-semibold text-primary">Notifikasi & Broadcast Terbaru</h2>
           <div className="mt-3 flex flex-col gap-3">
-            {recentBroadcasts.length === 0 && <p className="text-sm text-primary/50">Belum ada broadcast.</p>}
+            {recentBroadcasts.length === 0 && (
+              <EmptyState
+                compact
+                title="Belum ada broadcast"
+                description="Broadcast yang kamu buat di menu Notifikasi & Broadcast akan tampil di sini."
+              />
+            )}
             {recentBroadcasts.map((broadcast) => (
               <div key={broadcast.id} className="flex items-start justify-between gap-3 text-sm">
                 <p className="min-w-0 truncate font-medium text-primary">{broadcast.title}</p>

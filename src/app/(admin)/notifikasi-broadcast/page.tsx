@@ -34,7 +34,6 @@ const SEGMENT_BADGE_LABEL: Record<BroadcastSegment, string> = {
 const RELATED_FEATURE_OPTIONS: { value: BroadcastRelatedFeature; label: string }[] = [
   { value: "monitoring_kedai", label: "Monitoring Kedai" },
   { value: "monitoring_pasar", label: "Monitoring Pasar" },
-  { value: "ai_helper", label: "AI Helper" },
   { value: "ads", label: "Langganan Iklan" },
   { value: "bundle_premium", label: "Paket Premium" },
 ];
@@ -314,7 +313,7 @@ export default function NotifikasiBroadcastPage() {
                   </span>
                   {broadcast.relatedFeature && (
                     <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">
-                      {RELATED_FEATURE_LABEL[broadcast.relatedFeature]}
+                      {RELATED_FEATURE_LABEL[broadcast.relatedFeature] ?? broadcast.relatedFeature}
                     </span>
                   )}
                 </div>
