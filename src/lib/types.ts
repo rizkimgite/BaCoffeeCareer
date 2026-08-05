@@ -48,6 +48,35 @@ export type ConsumerAccount = {
   createdAt?: FirestoreTimestamp | null;
 };
 
+// Laporan kafe atas konsumen. Ditulis BaCoffee Business (tab Riwayat di Kelola Reservasi),
+// diverifikasi di sini. Kosakata status meniru AppealStatus yang sudah dipakai untuk banding
+// ulasan — pola "BB mengajukan → BC memoderasi" sudah ada, jangan bikin istilah baru.
+export type ReportStatus = "diajukan" | "terbukti" | "ditolak";
+
+export type ConsumerReport = {
+  id: string;
+  businessId: string;
+  businessName: string;
+  consumerId: string;
+  consumerName: string;
+  reservationId: string;
+  reservationTime?: FirestoreTimestamp | null;
+  reason: string;
+  description: string;
+  status: ReportStatus;
+  createdAt?: FirestoreTimestamp | null;
+  reviewedAt?: FirestoreTimestamp | null;
+  resultingFlagNumber?: number;
+};
+
+export const REPORT_REASON_LABEL: Record<string, string> = {
+  tidak_datang: "Tidak datang tanpa kabar",
+  merusak_fasilitas: "Merusak fasilitas kedai",
+  mengganggu_pengunjung: "Mengganggu pengunjung lain",
+  kasar_ke_staf: "Bersikap kasar ke staf",
+  lainnya: "Lainnya",
+};
+
 export type BroadcastSegment = "bisnis" | "bacoffee" | "keduanya";
 
 // "ai_helper" dihapus bersamaan dengan penghapusan fitur AI Helper di BB. Dokumen broadcast lama
