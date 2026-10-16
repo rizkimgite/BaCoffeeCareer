@@ -37,12 +37,6 @@ yarn-error.log*
 # vercel
 .vercel
 
-# claude code session lock (ephemeral, not meant to be versioned)
-.claude/scheduled_tasks.lock
-
-# dev log - personal consumption only, not for the public repo
-CLAUDE_DEVLOG.md
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
